@@ -10,13 +10,20 @@ import Bases.TabletCMD;
 import Bases.cnc;
 import java.net.URL;
 import java.util.ResourceBundle;
+import javafx.concurrent.WorkerStateEvent;
 import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.scene.chart.BarChart;
+import javafx.scene.chart.CategoryAxis;
+import javafx.scene.chart.NumberAxis;
+import javafx.scene.chart.XYChart;
 import javafx.scene.control.Button;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import javafx.scene.layout.Border;
 
 
 /**
@@ -24,13 +31,6 @@ import javafx.scene.control.TextField;
  * @author Francisco
  */
 public class ControlMaquinaController implements Initializable {
-//   Double relx=30.0;
-//   Double rely=40.0;
-//   Double relz=40.0;
-//   Double relr=40.0/360;
-//   Double relv=166.666667;
-//   Double relp=10000.0;
-   
    Double relx=30.0;
    Double rely=40.0;
    Double relz=40.0;
@@ -38,7 +38,18 @@ public class ControlMaquinaController implements Initializable {
    Double relv=166.666667;
    Double relp=10000.0;
    
-   
+   Double temperaturas[]=new Double[4];
+   int nMuestras=20;
+   //variables para muestra de temperaturas
+    CategoryAxis ejeX=new CategoryAxis();
+    NumberAxis ejeY=new NumberAxis("Temperatura", 0, 40, 1);
+    public static XYChart.Series sensor1=new XYChart.Series();
+    public static XYChart.Series sensor2=new XYChart.Series();
+    public static XYChart.Series sensor3=new XYChart.Series();
+    public static XYChart.Series sensor4=new XYChart.Series();
+   //manejo de datos
+    @FXML
+    BarChart<String,Number> bcjavalinas=new BarChart<>(ejeX,ejeY);
    //coso sebas
    TabletCMD tabletcmd;
    //variables de control
@@ -119,6 +130,17 @@ public class ControlMaquinaController implements Initializable {
                 Double.parseDouble(txtFldPosR.getText()));
     }
     
+//eventos de botones de movimiento
+    Temperaturas adqTemp=new Temperaturas();
+    Double coso=0.000;
+    
+    @FXML
+    private void handleButtonAdquirirTemp(ActionEvent e){
+        adqTemp.iniciarMuestreo(nMuestras);
+        adqTemp.start();
+    }    
+    
+    
 
 //eventos de botones de configruacion    
     @FXML
@@ -160,17 +182,97 @@ public class ControlMaquinaController implements Initializable {
         controlador.mov_parameter(axis, init_speed, speed, acc, pmm, num);
     }
    
-     @FXML void handleButtonDetener(ActionEvent e){
+     @FXML 
+     void handleButtonDetener(ActionEvent e){
          ctablet=false;
          controlador.stop();
-         //agregar coso detiene comunicacion con tablet
+         tabletcmd.comunic.Detener_Actividad();
      }
+     
+     
+     
+     
+     
+     
+     
      
      
     @Override
     public void initialize(URL url, ResourceBundle rb) {
         
         tabletcmd=new TabletCMD(2000);
+
+
+        
+        bcjavalinas.getXAxis().setLabel("Sensores");
+        bcjavalinas.getYAxis().setLabel("Temperatura [°C]");
+
+        bcjavalinas.getYAxis().autoRangingProperty().set(false);
+        bcjavalinas.setTitle("SENSORES");
+
+        
+        
+        
+        //sensor1.getData().add(new XYChart.Data(javalina1,0));
+        
+        temperaturas[0]=0.00;
+        temperaturas[1]=0.00;
+        temperaturas[2]=0.00;
+        temperaturas[3]=0.00;
+        
+        sensor1.setName("Sensor-1");
+        sensor1.getData().add(new XYChart.Data("Sensor-1",temperaturas[0]=0.00));
+        sensor2.setName("Sensor-2");
+        sensor2.getData().add(new XYChart.Data("Sensor-2",temperaturas[0]=0.00));
+        sensor3.setName("Sensor-3");
+        sensor3.getData().add(new XYChart.Data("Sensor-3",temperaturas[0]=0.00));
+        sensor4.setName("Sensor-4");
+        sensor4.getData().add(new XYChart.Data("Sensor-4",temperaturas[0]=0.00));
+
+        bcjavalinas.getData().addAll(sensor1,sensor2,sensor3,sensor4);
+        bcjavalinas.setAnimated(false);        
+        
+
+        //Adquisición de temperaturas finalizada
+        adqTemp.setOnSucceeded(new EventHandler<WorkerStateEvent>() {
+
+            @Override
+            public void handle(WorkerStateEvent event) {
+                temperaturas=adqTemp.getValue();
+                adqTemp.reset();
+                adqTemp.iniciarMuestreo(nMuestras);
+                adqTemp.start();
+                int c=0; 
+                for (XYChart.Series<String, Number> series : bcjavalinas.getData()) {
+                    for (XYChart.Data<String, Number> data : series.getData()) {
+                        data.setYValue(temperaturas[c]);
+                        c++;
+                    }
+            
+                }
+            }
+        });
+        adqTemp.setOnFailed(new EventHandler<WorkerStateEvent>() {
+
+            @Override
+            public void handle(WorkerStateEvent event) {
+                System.out.println( "Error en el hilo reiniciando hilo");
+                adqTemp.reset();
+                adqTemp.iniciarMuestreo(nMuestras);
+                adqTemp.start();
+            }
+        });
+        adqTemp.setOnCancelled(new EventHandler<WorkerStateEvent>() {
+
+            @Override
+            public void handle(WorkerStateEvent event) {
+                System.out.println( "Timeout excedido reiniciando hilo");
+                adqTemp.reset();
+                adqTemp.iniciarMuestreo(nMuestras);
+                adqTemp.start();
+            }
+        });
+        
         
         tabletcmd.asignarListener(new TabletCMD.OrdenRecibida() {
 
