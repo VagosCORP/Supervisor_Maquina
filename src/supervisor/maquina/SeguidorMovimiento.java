@@ -6,8 +6,6 @@
 
 package supervisor.maquina;
 
-import Bases.cnc;
-import java.util.Arrays;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
@@ -18,6 +16,7 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.concurrent.Service;
 import javafx.concurrent.Task;
+import Bases.cnc;
 
 /**
  *

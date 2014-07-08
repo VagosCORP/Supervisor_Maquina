@@ -127,7 +127,7 @@ public class GruaCnc {
     ////////////////////////////////////////////////////////    
     public SimpleBooleanProperty conected=new SimpleBooleanProperty(false);
     //Temporizador de actualizacion de datos de posición y estado
-    Timeline actualizador = new Timeline(new KeyFrame(Duration.millis(150), new EventHandler<ActionEvent>() {
+    Timeline actualizador = new Timeline(new KeyFrame(Duration.millis(500), new EventHandler<ActionEvent>() {
     @Override
     public void handle(ActionEvent event) {
     //Temporizador para control de posición
@@ -237,7 +237,7 @@ public class GruaCnc {
                 System.out.println("Fin del intento de conección :");
             try {
                 switch(task.get()){
-                    case COM_NO_ERR:{
+                    case (int)COM_NO_ERR:{
                         conListener.OnConnectionSucces();
                         break;
                     }
@@ -293,7 +293,10 @@ public class GruaCnc {
             pulsos4=(int)(z*Rz*Rp);
             pulsos5=(int)(r*Rr*Rp);
             
-            int res=control.fifo(pulsos1, pulsos2, pulsos3, pulsos4, pulsos5, (int)(166.6667*1000));
+            //int res=control.fifo(pulsos1, pulsos2, pulsos3, pulsos4, pulsos5, (int)(166.6667*1000));
+            //int res=control.fifo((short)3, pulsos3, (short)4, pulsos4, (short)5, pulsos5, (int)(166.6667*1000));
+            int res=control.line((short)3, pulsos3, (short)4, pulsos4, (short)5, pulsos5);
+            
             if(res==0){
                 System.out.println("Comando enviado con exito");
                 actualizador.play();
@@ -355,7 +358,7 @@ public class GruaCnc {
 
 
             if(Math.abs(pulsos1-pulsos2)>100){
-                control.stop();
+                //control.stop();
                  System.out.println();
                 System.out.println("Desfase entre motores eje X :"+Math.abs(pulsos1-pulsos2));
             }

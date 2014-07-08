@@ -6,10 +6,9 @@
 
 package supervisor.maquina;
 
-import Bases.TabletCMD;
-import Bases.cnc;
 import java.net.URL;
 import java.util.ResourceBundle;
+
 import javafx.concurrent.WorkerStateEvent;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
@@ -23,7 +22,8 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
-import javafx.scene.layout.Border;
+import Bases.TabletCMD;
+import Bases.cnc;
 
 
 /**
@@ -32,11 +32,17 @@ import javafx.scene.layout.Border;
  */
 public class ControlMaquinaController implements Initializable {
    Double relx=30.0;
-   Double rely=40.0;
-   Double relz=40.0;
-   Double relr=40.0/360;
+   Double rely=40.0/18;
+   Double relz=40.0/18;
+   Double relr=2.4*40.0/360;
    Double relv=166.666667;
    Double relp=10000.0;
+   
+   //variables usadas para generacion de rutina
+   Boolean rutina=false;
+   int paso_rut=0;   
+   //
+   
    
    Double temperaturas[]=new Double[4];
    int nMuestras=20;
@@ -121,6 +127,23 @@ public class ControlMaquinaController implements Initializable {
     private Button btnConfigurar;        
  
     
+//eventos para temperatura
+    Boolean adq=false;
+    
+    @FXML
+    private void handleIniciarTemp(ActionEvent e){
+        adq=true;
+        if(!adqTemp.isRunning()){
+            adqTemp.reset();
+            adqTemp.iniciarMuestreo(nMuestras);
+            adqTemp.start();
+        }
+        
+    }
+    @FXML
+    private void handleDetenerTemp(ActionEvent e){
+        adq=false;
+    }
 //eventos de botones de movimiento
     @FXML
     private void handleButtonMover(ActionEvent e){
@@ -134,11 +157,7 @@ public class ControlMaquinaController implements Initializable {
     Temperaturas adqTemp=new Temperaturas();
     Double coso=0.000;
     
-    @FXML
-    private void handleButtonAdquirirTemp(ActionEvent e){
-        adqTemp.iniciarMuestreo(nMuestras);
-        adqTemp.start();
-    }    
+  
     
     
 
@@ -238,17 +257,19 @@ public class ControlMaquinaController implements Initializable {
 
             @Override
             public void handle(WorkerStateEvent event) {
-                temperaturas=adqTemp.getValue();
-                adqTemp.reset();
-                adqTemp.iniciarMuestreo(nMuestras);
-                adqTemp.start();
-                int c=0; 
-                for (XYChart.Series<String, Number> series : bcjavalinas.getData()) {
-                    for (XYChart.Data<String, Number> data : series.getData()) {
-                        data.setYValue(temperaturas[c]);
-                        c++;
+                if(adq){
+                    temperaturas=adqTemp.getValue();
+                    adqTemp.reset();
+                    adqTemp.iniciarMuestreo(nMuestras);
+                    adqTemp.start();
+                    int c=0; 
+                    for (XYChart.Series<String, Number> series : bcjavalinas.getData()) {
+                        for (XYChart.Data<String, Number> data : series.getData()) {
+                            data.setYValue(temperaturas[c]);
+                            c++;
+                        }
+
                     }
-            
                 }
             }
         });
@@ -256,20 +277,27 @@ public class ControlMaquinaController implements Initializable {
 
             @Override
             public void handle(WorkerStateEvent event) {
-                System.out.println( "Error en el hilo reiniciando hilo");
-                adqTemp.reset();
-                adqTemp.iniciarMuestreo(nMuestras);
-                adqTemp.start();
+                if(adq){
+                    System.out.println( "Error en el hilo reiniciando hilo");
+                    adqTemp.reset();
+                    adqTemp.iniciarMuestreo(nMuestras);
+                    adqTemp.start();
+                }
+                
+                
             }
         });
         adqTemp.setOnCancelled(new EventHandler<WorkerStateEvent>() {
 
             @Override
             public void handle(WorkerStateEvent event) {
-                System.out.println( "Timeout excedido reiniciando hilo");
-                adqTemp.reset();
-                adqTemp.iniciarMuestreo(nMuestras);
-                adqTemp.start();
+                if(adq){
+                    System.out.println( "Timeout excedido reiniciando hilo");
+                    adqTemp.reset();
+                    adqTemp.iniciarMuestreo(nMuestras);
+                    adqTemp.start();
+                }
+                
             }
         });
         
@@ -283,7 +311,7 @@ public class ControlMaquinaController implements Initializable {
 
             @Override
             public void mover_a(float x, float y, float z, float a) {
-                grua.mover((double)y/1000,(double)x/1000,(double)z/1000,(double)(-a));
+                grua.mover((double)0,(double)x/1000*350,(double)z/1000*40,(double)a);
             }
 
             @Override
@@ -349,7 +377,8 @@ public class ControlMaquinaController implements Initializable {
             @Override
             public void OnMovementSucces() {
                 System.out.println("Movimiento Finalizado");
-                tabletcmd.comunic.Detener_Actividad();
+                if(tabletcmd.comunic.estado==tabletcmd.comunic.CONNECTED)
+                                tabletcmd.comunic.Detener_Actividad();
             }
 
             @Override
@@ -388,14 +417,14 @@ public class ControlMaquinaController implements Initializable {
                 System.out.println("Posicion actualizada");
                 if(tabletcmd.comunic.estado==tabletcmd.comunic.CONNECTED){
                     //actualizar informacion en la tablet
-                    tabletcmd.comunic.enviar("X="+Double.toString(Math.abs(grua.posCarro*1000))+
+                    tabletcmd.comunic.enviar("X="+Double.toString(Math.abs(grua.posCarro*1000/350))+
                             "=Y="+Double.toString(Math.abs(grua.posPortico*1000))+
-                            "=Z="+Double.toString(Math.abs(grua.posElevador*1000))+
+                            "=Z="+Double.toString(Math.abs(grua.posElevador*1000/40))+
                             "=A="+Double.toString(Math.abs(grua.posRotador))+"=/");
                     //ver que se esta enciando a la tablet
-                    System.out.println("X="+Double.toString(Math.abs(grua.posCarro*1000))+
+                    System.out.println("X="+Double.toString(Math.abs(grua.posCarro*1000/600))+
                             "=Y="+Double.toString(Math.abs(grua.posPortico*1000))+
-                            "=Z="+Double.toString(Math.abs(grua.posElevador*1000))+
+                            "=Z="+Double.toString(Math.abs(grua.posElevador*1000/50))+
                             "=A="+Double.toString(Math.abs(grua.posRotador))+"=/");
                 }
                 
